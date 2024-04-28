@@ -127,7 +127,10 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
 
     for(int i=leftBottom.x(); i<=righterTop.x(); ++i){
         for(int j=leftBottom.y(); j<=righterTop.y(); ++j){
-            // if insideTriangle()
+            if(insideTriangle(i, j, t.v)){
+                // std::cout << i << " " << j << " " << t.color[0] << "\n";
+                set_pixel(Eigen::Vector3f(i, j, 1), t.color[0] * 255);
+            }
         }
     }
     
