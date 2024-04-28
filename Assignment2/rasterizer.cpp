@@ -43,6 +43,16 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 static bool insideTriangle(int x, int y, const Vector3f* _v)
 {   
     // TODO : Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
+    int pre_res = 0;
+    for(int i=0; i<3; ++i){
+        int j = (i + 1) % 3;
+        Eigen::Vector2f vector_ij = (_v[j] - _v[i]).head(2);
+        Eigen::Vector2f vector_ix = Eigen::Vector2f(x - _v[i].x(), y - _v[i].y());
+        float cross_res = vector_ij.x() * vector_ix.y() - vector_ij.y() * vector_ix.x();
+        pre_res = (pre_res == 0 ? cross_res: pre_res);
+        if(signbit(pre_res) != signbit(cross_res)) return false;
+    }
+    return true;
 }
 
 static std::tuple<float, float, float> computeBarycentric2D(float x, float y, const Vector3f* v)
@@ -105,6 +115,21 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     auto v = t.toVector4();
+    Eigen::Vector2i leftBottom(width, height);
+    Eigen::Vector2i righterTop(0, 0);
+    for (auto &&i : v)
+    {
+        leftBottom.x() = std::min(leftBottom.x(), int(std::floor(i.x())));
+        leftBottom.y() = std::min(leftBottom.y(), int(std::floor(i.y())));
+        righterTop.x() = std::max(righterTop.x(), int(std::ceil(i.x())));
+        righterTop.y() = std::max(righterTop.y(), int(std::ceil(i.y())));
+    }
+
+    for(int i=leftBottom.x(); i<=righterTop.x(); ++i){
+        for(int j=leftBottom.y(); j<=righterTop.y(); ++j){
+            // if insideTriangle()
+        }
+    }
     
     // TODO : Find out the bounding box of current triangle.
     // iterate through the pixel and find if the current pixel is inside the triangle
