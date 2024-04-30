@@ -69,22 +69,28 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
     auto& ind = ind_buf[ind_buffer.ind_id];
     auto& col = col_buf[col_buffer.col_id];
 
-    float f1 = (50 - 0.1) / 2.0;
-    float f2 = (50 + 0.1) / 2.0;
+    float f1 = -(50 - 0.1) / 2.0;
+    float f2 = -(50 + 0.1) / 2.0;
 
     Eigen::Matrix4f mvp = projection * view * model;
     for (auto& i : ind)
     {
         Triangle t;
+        // std::cout << "before:\n" << to_vec4(buf[i[0]], 1.0f) << "\n";
+        // std::cout << "end:\n" << mvp * to_vec4(buf[i[0]], 1.0f) << "\n";
         Eigen::Vector4f v[] = {
                 mvp * to_vec4(buf[i[0]], 1.0f),
                 mvp * to_vec4(buf[i[1]], 1.0f),
                 mvp * to_vec4(buf[i[2]], 1.0f)
         };
+
+        t.w << v[0].w(), v[1].w(), v[2].w();
+
         //Homogeneous division
         for (auto& vec : v) {
             vec /= vec.w();
         }
+        
         //Viewport transformation
         for (auto & vert : v)
         {
@@ -115,6 +121,7 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     auto v = t.toVector4();
+    
     Eigen::Vector2i leftBottom(width, height);
     Eigen::Vector2i righterTop(0, 0);
     for (auto &&i : v)
@@ -128,8 +135,16 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     for(int i=leftBottom.x(); i<=righterTop.x(); ++i){
         for(int j=leftBottom.y(); j<=righterTop.y(); ++j){
             if(insideTriangle(i, j, t.v)){
-                // std::cout << i << " " << j << " " << t.color[0] << "\n";
-                set_pixel(Eigen::Vector3f(i, j, 1), t.color[0] * 255);
+                auto[alpha, beta, gamma] = computeBarycentric2D(i, j, t.v);
+                float w_reciprocal = alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w();
+                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                z_interpolated /= w_reciprocal;
+                if(z_interpolated <= depth_buf[get_index(i, j)]){
+                    depth_buf[get_index(i, j)] = z_interpolated;
+                    Eigen::Vector3f color = (alpha * t.color[0] / v[0].w() + beta * t.color[1] / v[1].w() + gamma * t.color[2] / v[2].w());
+                    color /= w_reciprocal;
+                    set_pixel(Eigen::Vector3f(i, j, 1), color * 255);
+                }
             }
         }
     }
