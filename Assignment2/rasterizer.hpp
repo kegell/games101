@@ -57,7 +57,7 @@ namespace rst
     class rasterizer
     {
     public:
-        rasterizer(int w, int h);
+        rasterizer(int w, int h, int n);
         pos_buf_id load_positions(const std::vector<Eigen::Vector3f>& positions);
         ind_buf_id load_indices(const std::vector<Eigen::Vector3i>& indices);
         col_buf_id load_colors(const std::vector<Eigen::Vector3f>& colors);
@@ -91,11 +91,14 @@ namespace rst
         std::map<int, std::vector<Eigen::Vector3f>> col_buf;
 
         std::vector<Eigen::Vector3f> frame_buf;
+        std::vector<std::vector<Eigen::Vector3f>> super_frame_buf;
 
         std::vector<float> depth_buf;
+        std::vector<std::vector<float>> super_depth_buf;
+
         int get_index(int x, int y);
 
-        int width, height;
+        int width, height, super_n;
 
         int next_id = 0;
         int get_next_id() { return next_id++; }
