@@ -172,8 +172,8 @@ static std::tuple<float, float, float> computeBarycentric2D(float x, float y, co
 
 void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
 
-    float f1 = (50 - 0.1) / 2.0;
-    float f2 = (50 + 0.1) / 2.0;
+    float f1 = -(50 - 0.1) / 2.0;
+    float f2 = -(50 + 0.1) / 2.0;
 
     Eigen::Matrix4f mvp = projection * view * model;
     for (const auto& t:TriangleList)
@@ -259,6 +259,54 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos) 
 {
+    auto v = t.toVector4();
+    
+    Eigen::Vector2i leftBottom(width, height);
+    Eigen::Vector2i righterTop(0, 0);
+    for (auto &&i : v)
+    {
+        leftBottom.x() = std::min(leftBottom.x(), int(std::floor(i.x())));
+        leftBottom.y() = std::min(leftBottom.y(), int(std::floor(i.y())));
+        righterTop.x() = std::max(righterTop.x(), int(std::ceil(i.x())));
+        righterTop.y() = std::max(righterTop.y(), int(std::ceil(i.y())));
+    }
+
+    for(int i=leftBottom.x(); i<=righterTop.x(); ++i){
+        for(int j=leftBottom.y(); j<=righterTop.y(); ++j){
+            float px = i + 0.5, py = j + 0.5;
+            
+            if(insideTriangle(px, py, t.v)){
+                auto[alpha, beta, gamma] = computeBarycentric2D(px, py, t.v);
+                float w_reciprocal = 1 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                
+                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                z_interpolated *= w_reciprocal;
+        
+                Eigen::Vector3f interpolated_color = alpha * t.color[0] / v[0].w() + beta * t.color[1] / v[1].w() + gamma * t.color[2] / v[2].w();
+                interpolated_color *= w_reciprocal;
+
+                Eigen::Vector3f interpolated_normal = alpha * t.normal[0] / v[0].w() + beta * t.normal[1] / v[1].w() + gamma * t.normal[2] / v[2].w();
+                interpolated_normal *= w_reciprocal;
+
+                Eigen::Vector2f interpolated_texcoords = alpha * t.tex_coords[0] / v[0].w() + beta * t.tex_coords[1] / v[1].w() + gamma * t.tex_coords[2] / v[2].w();
+                interpolated_texcoords *= w_reciprocal;
+
+                // view_pos 是三角形3个顶点经过MV变换后的坐标
+                Eigen::Vector3f interpolated_shadingcoords = alpha * view_pos[0] / v[0].w() + beta * view_pos[1] / v[1].w() + gamma * view_pos[2] / v[2].w();
+                interpolated_shadingcoords *= w_reciprocal;
+
+                fragment_shader_payload payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
+                payload.view_pos = interpolated_shadingcoords;
+                auto pixel_color = fragment_shader(payload);
+
+                if(z_interpolated <= depth_buf[get_index(i, j)]){
+                    depth_buf[get_index(i, j)] = z_interpolated;
+                    set_pixel(Eigen::Vector2i(i, j), pixel_color);
+                }
+            }
+            
+        }
+    }
     // TODO: From your HW3, get the triangle rasterization code.
     // TODO: Inside your rasterization loop:
     //    * v[i].w() is the vertex view space depth value z.
