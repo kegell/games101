@@ -123,7 +123,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     if (payload.texture)
     {
         // TODO: Get the texture value at the texture coordinates of the current fragment
-
+        return_color = payload.texture->getColor(payload.tex_coords[0], payload.tex_coords[1]);
     }
     Eigen::Vector3f texture_color;
     texture_color << return_color.x(), return_color.y(), return_color.z();
@@ -142,6 +142,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     float p = 150;
 
     Eigen::Vector3f color = texture_color;
+    // payload.view_pos 是对经过MV变换后的三个顶点插值的结果，此时相机位置在原点。
     Eigen::Vector3f point = payload.view_pos;
     Eigen::Vector3f normal = payload.normal;
 
@@ -151,7 +152,8 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
-
+        
+        // light坐标也应该进行V变换。
     }
 
     return result_color * 255.f;
