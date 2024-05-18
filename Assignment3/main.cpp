@@ -119,14 +119,12 @@ struct light
 
 Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 {
-    Eigen::Vector3f return_color = {0, 0, 0};
+    Eigen::Vector3f texture_color = {0, 0, 0};
     if (payload.texture)
     {
         // TODO: Get the texture value at the texture coordinates of the current fragment
-        return_color = payload.texture->getColor(payload.tex_coords[0], payload.tex_coords[1]);
+        texture_color = payload.texture->getColor(payload.tex_coords[0], payload.tex_coords[1]);
     }
-    Eigen::Vector3f texture_color;
-    texture_color << return_color.x(), return_color.y(), return_color.z();
 
     Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);
     Eigen::Vector3f kd = texture_color / 255.f;
@@ -141,7 +139,6 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 
     float p = 150;
 
-    Eigen::Vector3f color = texture_color;
     // payload.view_pos 是对经过MV变换后的三个顶点插值的结果，此时相机位置在原点。
     Eigen::Vector3f point = payload.view_pos;
     Eigen::Vector3f normal = payload.normal;
@@ -154,8 +151,18 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
         // components are. Then, accumulate that result on the *result_color* object.
         
         // light坐标也应该进行V变换。
-    }
+        Eigen::Vector3f view_space_light_pos = (get_view_matrix(eye_pos) * Eigen::Vector4f(light.position.x(), light.position.y(), light.position.z(), 1.0)).head<3>();
+        
+        Eigen::Vector3f view_pos_to_light = view_space_light_pos - point;
+        Eigen::Vector3f view_pos_to_eye = -point;
+        Eigen::Vector3f norm_half_vector = (view_pos_to_light.normalized() + view_pos_to_eye.normalized()).normalized();
+        
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity) / view_pos_to_light.squaredNorm() * MAX(0, normal.normalized().dot(view_pos_to_light.normalized()));
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity) / view_pos_to_light.squaredNorm() * pow(MAX(0, normal.normalized().dot(norm_half_vector)), p);
+        Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
 
+        result_color += diffuse + specular + ambient;
+    }
     return result_color * 255.f;
 }
 
@@ -183,7 +190,18 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        // light坐标也应该进行V变换。
+        Eigen::Vector3f view_space_light_pos = (get_view_matrix(eye_pos) * Eigen::Vector4f(light.position.x(), light.position.y(), light.position.z(), 1.0)).head<3>();
         
+        Eigen::Vector3f view_pos_to_light = view_space_light_pos - point;
+        Eigen::Vector3f view_pos_to_eye = -point;
+        Eigen::Vector3f norm_half_vector = (view_pos_to_light.normalized() + view_pos_to_eye.normalized()).normalized();
+        
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity) / view_pos_to_light.squaredNorm() * MAX(0, normal.normalized().dot(view_pos_to_light.normalized()));
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity) / view_pos_to_light.squaredNorm() * pow(MAX(0, normal.normalized().dot(norm_half_vector)), p);
+        Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+
+        result_color += diffuse + specular + ambient;
     }
 
     return result_color * 255.f;
@@ -232,6 +250,18 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
 
+        // light坐标也应该进行V变换。
+        Eigen::Vector3f view_space_light_pos = (get_view_matrix(eye_pos) * Eigen::Vector4f(light.position.x(), light.position.y(), light.position.z(), 1.0)).head<3>();
+        
+        Eigen::Vector3f view_pos_to_light = view_space_light_pos - point;
+        Eigen::Vector3f view_pos_to_eye = -point;
+        Eigen::Vector3f norm_half_vector = (view_pos_to_light.normalized() + view_pos_to_eye.normalized()).normalized();
+        
+        Eigen::Vector3f diffuse = kd.cwiseProduct(light.intensity) / view_pos_to_light.squaredNorm() * MAX(0, normal.normalized().dot(view_pos_to_light.normalized()));
+        Eigen::Vector3f specular = ks.cwiseProduct(light.intensity) / view_pos_to_light.squaredNorm() * pow(MAX(0, normal.normalized().dot(norm_half_vector)), p);
+        Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+
+        result_color += diffuse + specular + ambient;
 
     }
 
@@ -312,7 +342,7 @@ int main(int argc, const char** argv)
     auto texture_path = "hmap.jpg";
     r.set_texture(Texture(obj_path + texture_path));
 
-    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = normal_fragment_shader;
+    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = texture_fragment_shader;
 
     if (argc >= 2)
     {
