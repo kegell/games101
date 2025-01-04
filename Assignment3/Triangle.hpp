@@ -18,6 +18,9 @@ public:
     Vector2f tex_coords[3]; //texture u,v
     Vector3f normal[3]; //normal vector for each vertex
 
+    // TBN矩阵的T
+    Vector3f tagent;
+
     Texture *tex= nullptr;
     Triangle();
 
@@ -33,6 +36,8 @@ public:
     void setColors(const std::array<Vector3f, 3>& colors);
     void setTexCoord(int ind,Vector2f uv ); /*set i-th vertex texture coordinate*/
     std::array<Vector4f, 3> toVector4() const;
+
+    void calcTagent();
 };
 
 

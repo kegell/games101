@@ -149,7 +149,7 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
     return Vector4f(v3.x(), v3.y(), v3.z(), w);
 }
 
-static bool insideTriangle(int x, int y, const Vector4f* _v){
+static bool insideTriangle(float x, float y, const Vector4f* _v){
     Vector3f v[3];
     for(int i=0;i<3;i++)
         v[i] = {_v[i].x(),_v[i].y(), 1.0};
@@ -231,6 +231,8 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
             newtri.setNormal(i, n[i].head<3>());
         }
 
+        newtri.tagent = ((view * model) * to_vec4(t->tagent, 0.0f)).head<3>();
+
         newtri.setColor(0, 148,121.0,92.0);
         newtri.setColor(1, 148,121.0,92.0);
         newtri.setColor(2, 148,121.0,92.0);
@@ -300,6 +302,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
 
                     fragment_shader_payload payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
                     payload.view_pos = interpolated_shadingcoords;
+                    payload.tagent = t.tagent;
                     auto pixel_color = fragment_shader(payload);
 
                     set_pixel(Eigen::Vector2i(i, j), pixel_color);

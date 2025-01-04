@@ -22,6 +22,7 @@ struct fragment_shader_payload
     Eigen::Vector3f view_pos;
     Eigen::Vector3f color;
     Eigen::Vector3f normal;
+    Eigen::Vector3f tagent;
     Eigen::Vector2f tex_coords;
     Texture* texture;
 };

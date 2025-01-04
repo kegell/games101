@@ -242,6 +242,29 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     // Position p = p + kn * n * h(u,v)
     // Normal n = normalize(TBN * ln)
 
+    Eigen::Vector3f n = normal;
+    Eigen::Vector3f t = payload.tagent;
+    // 正交化
+    t = (t - t.dot(n) * n).normalized();
+    Eigen::Vector3f b = n.cross(t);
+
+    Eigen::Matrix3f tbn;
+    tbn << t, b, n;
+
+    auto uv = payload.tex_coords;
+    auto texture = payload.texture;
+    auto h_p = (texture->getColor(uv.x(), uv.y())).norm();
+    auto du = kh * kn * ((texture->getColor(uv.x() + 1.0 / texture->width, uv.y())).norm() - h_p);
+    auto dv = kh * kn * ((texture->getColor(uv.x(), uv.y() + 1.0 / texture->height)).norm() - h_p);
+
+    Eigen::Vector3f ln(-du, -dv, 1.0f);
+    // 经过法线贴图后的法线
+    Eigen::Vector3f result_normal = (tbn * ln).normalized();
+
+    // 把texture的模当作高度贴图处理
+    point += kn * n * h_p;
+    normal = result_normal;
+
 
     Eigen::Vector3f result_color = {0, 0, 0};
 
@@ -302,9 +325,25 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
     // Vector ln = (-dU, -dV, 1)
     // Normal n = normalize(TBN * ln)
 
+    Eigen::Vector3f n = normal;
+    Eigen::Vector3f t = payload.tagent;
+    // 正交化
+    t = (t - t.dot(n) * n).normalized();
+    Eigen::Vector3f b = n.cross(t);
 
-    Eigen::Vector3f result_color = {0, 0, 0};
-    result_color = normal;
+    Eigen::Matrix3f tbn;
+    tbn << t, b, n;
+
+    auto uv = payload.tex_coords;
+    auto texture = payload.texture;
+    auto h_p = (texture->getColor(uv.x(), uv.y())).norm();
+    auto du = kh * kn * ((texture->getColor(uv.x() + 1.0 / texture->width, uv.y())).norm() - h_p);
+    auto dv = kh * kn * ((texture->getColor(uv.x(), uv.y() + 1.0 / texture->height)).norm() - h_p);
+
+    Eigen::Vector3f ln(-du, -dv, 1.0f);
+    // 经过法线贴图后的法线
+    Eigen::Vector3f result_normal = (tbn * ln).normalized();
+    Eigen::Vector3f result_color(result_normal);
 
     return result_color * 255.f;
 }
@@ -333,6 +372,8 @@ int main(int argc, const char** argv)
                 t->setNormal(j,Vector3f(mesh.Vertices[i+j].Normal.X,mesh.Vertices[i+j].Normal.Y,mesh.Vertices[i+j].Normal.Z));
                 t->setTexCoord(j,Vector2f(mesh.Vertices[i+j].TextureCoordinate.X, mesh.Vertices[i+j].TextureCoordinate.Y));
             }
+            // 计算三角形面的切线向量
+            t->calcTagent();
             TriangleList.push_back(t);
         }
     }

@@ -63,3 +63,15 @@ void Triangle::setColors(const std::array<Vector3f, 3>& colors)
     setColor(1, colors[1][0], colors[1][1], colors[1][2]);
     setColor(2, colors[2][0], colors[2][1], colors[2][2]);
 }
+
+void Triangle::calcTagent()
+{
+    auto du1 = tex_coords[1].x() - tex_coords[0].x();
+    auto dv1 = tex_coords[1].y() - tex_coords[0].y();
+    auto du2 = tex_coords[2].x() - tex_coords[0].x();
+    auto dv2 = tex_coords[2].y() - tex_coords[0].y();
+
+    Vector3f vector_BA = (v[1] - v[0]).head<3>();
+    Vector3f vector_CA = (v[2] - v[0]).head<3>();
+    tagent = (dv2 * vector_BA - dv1 * vector_CA) / (du1 * dv2 - du2 * dv1);
+}
